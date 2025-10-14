@@ -125,7 +125,7 @@ export function apply(ctx: Context, config: Config) {
   /**
    * 获取原始消息内容命令
    */
-  ins.subcommand('content', '获取原始内容')
+  ins.subcommand('contents', '获取原始内容')
     .option('id', '-i <messageId:string> 指定消息ID')
     .usage('发送或回复消息以查看其原始内容，使用 -i 指定消息ID')
     .action(async ({ session, options }) => {
