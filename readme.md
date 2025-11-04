@@ -2,7 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/koishi-plugin-dev-tool?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-dev-tool)
 
-辅助工具，解析消息，操作数据库表等
+开发辅助：支持管理、操作数据库表，快捷操作 OneBot API（查询信息、获取资源、发包等），解析消息，监听事件等实用指令
 
 ## 功能介绍
 
