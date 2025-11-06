@@ -313,78 +313,72 @@ export class Sender {
 
     onebot.subcommand('forward <nodes:text>', '发送合并转发消息')
       .usage(
-        '使用 `||` 分隔节点，通过`:`区分用户和内容。\n' +
-        '格式: 使用 `QQ/@昵称` 指定用户信息，若省略则使用自己的信息。\n' +
-        '节点内回复: 在内容前添加 `[reply=消息ID]` 来引用一条消息。\n' +
-        '示例: forward 123:一||@张三:[reply=456]二||[reply=789]三'
+        '使用换行分隔每个节点。\n' +
+        '节点格式: `[用户信息] 内容`\n\n' +
+        '用户信息格式 (可选):\n' +
+        '  - `[QQ号 昵称]` (例: `[12345 张三] 你好`)\n' +
+        '  - `[昵称]` (使用你的QQ号, 例: `[管理员] 请注意`)\n' +
+        '  - 省略用户信息，则默认使用你的信息。\n\n' +
+        '引用完整消息:\n' +
+        '  - `[<消息ID>]` (单独一行，自动抓取该消息的作者和内容)\n\n' +
+        '示例:\n' +
+        'forward\n' +
+        '[12345 张三] 这是第一条\n' +
+        '[<114514-1919810>] (引用一条历史消息)\n' +
+        '这是第三条，由我发送'
       )
       .action(async ({ session }, nodesText) => {
         if (session.bot.platform !== 'onebot') return;
         if (!nodesText?.trim()) return '请提供节点内容';
-
         try {
-          const nodeStrings = nodesText.split('||');
+          const nodeStrings = nodesText.split('\n');
           const messageElements = [];
+          const authorRegex = /^\[([^\]]+)\]\s*(.*)$/;
+          const quoteRegex = /^<([\w-]+)>$/;
           for (const nodeStr of nodeStrings) {
-            if (!nodeStr.trim()) continue;
+            const trimmedNode = nodeStr.trim();
+            if (!trimmedNode) continue;
             let userId = session.author.userId;
-            let nickname = session.author.name;
-            let content = nodeStr.trim();
-            let replyId = null;
-            const colonIndex = nodeStr.indexOf(':');
-            if (colonIndex !== -1) {
-              const metaStr = nodeStr.substring(0, colonIndex).trim();
-              content = nodeStr.substring(colonIndex + 1).trim();
-              if (metaStr) {
-                const metaElements = h.parse(metaStr);
-                const atElement = metaElements.find(el => el.type === 'at');
-                if (atElement) {
-                  userId = atElement.attrs.id;
-                  const nickPart = metaElements
-                    .filter(el => el.type === 'text')
-                    .map(el => el.attrs.content)
-                    .join('')
-                    .trim();
-                  nickname = nickPart || null;
+            let name = session.author.name;
+            let contentElements: (h | string)[] = [];
+            const authorMatch = trimmedNode.match(authorRegex);
+            let contentText = trimmedNode;
+            if (authorMatch) {
+              const authorStr = authorMatch[1].trim();
+              contentText = authorMatch[2].trim();
+              const quoteMatch = authorStr.match(quoteRegex);
+              if (quoteMatch) {
+                const messageId = quoteMatch[1];
+                const msgInfo = await session.bot.getMessage(session.channelId, messageId);
+                  userId = msgInfo.user.id;
+                  name = msgInfo.user.name;
+                  contentElements = h.parse(msgInfo.content);
+                  contentText = '';
+              } else {
+                const spaceIndex = authorStr.indexOf(' ');
+                if (spaceIndex > 0) {
+                  const idPart = authorStr.substring(0, spaceIndex);
+                  const namePart = authorStr.substring(spaceIndex + 1).trim();
+                  if (/^\d{5,}$/.test(idPart)) {
+                    userId = idPart;
+                    name = namePart;
+                  }
                 } else {
-                  const spaceIndex = metaStr.indexOf(' ');
-                  if (spaceIndex !== -1) {
-                    const part1 = metaStr.substring(0, spaceIndex).trim();
-                    const part2 = metaStr.substring(spaceIndex + 1).trim();
-                    if (/^\d{5,}$/.test(part1) && part2) {
-                      userId = part1;
-                      nickname = part2;
-                    } else {
-                      userId = session.author.userId;
-                      nickname = metaStr;
-                    }
+                  if (/^\d{5,}$/.test(authorStr)) {
+                    userId = authorStr;
+                    name = null;
                   } else {
-                    if (/^\d{5,}$/.test(metaStr)) {
-                      userId = metaStr;
-                      nickname = null;
-                    } else {
-                      userId = session.author.userId;
-                      nickname = metaStr;
-                    }
+                    name = authorStr;
                   }
                 }
               }
             }
-            const replyMatch = content.match(/^\[reply=([\w-]+)\]/);
-            if (replyMatch) {
-              replyId = replyMatch[1];
-              content = content.substring(replyMatch[0].length).trim();
-            }
-            if (!content && !replyId) continue;
-            const authorElement = h('author', { id: userId, name: nickname });
-            const nodeContentElements = [];
-            if (replyId) nodeContentElements.push(h('reply', { id: replyId }, 'hello'));
-            if (content) nodeContentElements.push(...h.parse(content));
-            if (nodeContentElements.length > 0) messageElements.push(h('message', {}, [authorElement, ...nodeContentElements]));
+            if (contentText) contentElements.push(...h.parse(contentText));
+            if (contentElements.length === 0) continue;
+            const authorElement = h('author', { id: userId, name });
+            messageElements.push(h('message', {}, [authorElement, ...contentElements]));
           }
-          if (messageElements.length === 0) {
-            return '消息节点无效';
-          }
+          if (messageElements.length === 0) return '消息节点无效';
           const forwardMessage = h('message', { forward: true }, messageElements);
           await session.send(forwardMessage);
         } catch (error) {

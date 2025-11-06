@@ -1,14 +1,14 @@
 {
   "name": "koishi-plugin-dev-tool",
   "description": "开发辅助：支持管理、操作数据库表，快捷操作 OneBot API（查询信息、获取资源、发包等），解析消息，监听事件等实用指令",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "contributors": [
     "Yis_Rime <yis_rime@outlook.com>"
   ],
-  "homepage": "https://github.com/YisRime/koishi-plugin-dev-tool",
+  "homepage": "https://github.com//Koishi-Plugin/dev-tool",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/YisRime/koishi-plugin-dev-tool.git"
+    "url": "git+https://github.com//Koishi-Plugin/dev-tool.git"
   },
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
