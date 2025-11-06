@@ -312,44 +312,57 @@ export class Sender {
       })
 
     onebot.subcommand('forward <nodes:text>', '发送合并转发消息')
-      .usage('格式:`[QQ号 昵称]内容`，使用换行分隔节点，用户信息可选')
+      .usage('格式:`"[QQ号 昵称]内容"`，换行分隔节点，引号包裹多行，用户信息可选。')
       .action(async ({ session }, nodesText) => {
         if (session.bot.platform !== 'onebot') return;
         if (!nodesText?.trim()) return '请提供节点内容';
         try {
-          const nodeStrings = nodesText.split('\n');
+          const parseNodes = (text: string): string[] => {
+            const nodes: string[] = [];
+            let current = '';
+            let inQuote = false;
+            const processedText = text + '\n';
+            for (let i = 0; i < processedText.length; i++) {
+              const char = processedText[i];
+              if (char === '"') inQuote = !inQuote;
+              if (char === '\n' && !inQuote) {
+                if (current.trim()) nodes.push(current);
+                current = '';
+              } else {
+                current += char;
+              }
+            }
+            return nodes;
+          };
+          const nodeStrings = parseNodes(nodesText);
           const messageElements = [];
-          const authorRegex = /^\[([^\]]+)\]\s*(.*)$/;
+          const authorRegex = /^\[([^\]]+)\]\s*(.*)$/s;
           for (const nodeStr of nodeStrings) {
-            const trimmedNode = nodeStr.trim();
-            if (!trimmedNode) continue;
+            if (!nodeStr.trim()) continue;
             let userId = session.author.userId;
             let name = session.author.name;
-            let contentElements: (h | string)[] = [];
-            const authorMatch = trimmedNode.match(authorRegex);
-            let contentText = trimmedNode;
+            const authorMatch = nodeStr.match(authorRegex);
+            let contentText = nodeStr;
             if (authorMatch) {
               const authorStr = authorMatch[1].trim();
-              contentText = authorMatch[2].trim();
+              contentText = authorMatch[2];
               const spaceIndex = authorStr.indexOf(' ');
               if (spaceIndex > 0) {
                 const idPart = authorStr.substring(0, spaceIndex);
                 const namePart = authorStr.substring(spaceIndex + 1).trim();
-                if (/^\d{5,}$/.test(idPart)) {
-                  userId = idPart;
-                  name = namePart;
-                }
+                if (/^\d{5,}$/.test(idPart)) { userId = idPart; name = namePart }
               } else {
                 if (/^\d{5,}$/.test(authorStr)) {
-                  userId = authorStr;
-                  name = null;
+                  userId = authorStr; name = null;
                 } else {
                   name = authorStr;
                 }
               }
             }
-            if (contentText) contentElements.push(...h.parse(contentText));
-            if (contentElements.length === 0) continue;
+            contentText = contentText.trim();
+            if (contentText.startsWith('"') && contentText.endsWith('"')) contentText = contentText.substring(1, contentText.length - 1);
+            if (!contentText.trim()) continue;
+            const contentElements = h.parse(contentText);
             const authorElement = h('author', { id: userId, name });
             messageElements.push(h('message', {}, [authorElement, ...contentElements]));
           }
