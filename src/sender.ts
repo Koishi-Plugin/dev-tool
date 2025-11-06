@@ -312,21 +312,7 @@ export class Sender {
       })
 
     onebot.subcommand('forward <nodes:text>', '发送合并转发消息')
-      .usage(
-        '使用换行分隔每个节点。\n' +
-        '节点格式: `[用户信息] 内容`\n\n' +
-        '用户信息格式 (可选):\n' +
-        '  - `[QQ号 昵称]` (例: `[12345 张三] 你好`)\n' +
-        '  - `[昵称]` (使用你的QQ号, 例: `[管理员] 请注意`)\n' +
-        '  - 省略用户信息，则默认使用你的信息。\n\n' +
-        '引用完整消息:\n' +
-        '  - `[<消息ID>]` (单独一行，自动抓取该消息的作者和内容)\n\n' +
-        '示例:\n' +
-        'forward\n' +
-        '[12345 张三] 这是第一条\n' +
-        '[<114514-1919810>] (引用一条历史消息)\n' +
-        '这是第三条，由我发送'
-      )
+      .usage('格式:`[QQ号 昵称]内容`，使用换行分隔节点，用户信息可选')
       .action(async ({ session }, nodesText) => {
         if (session.bot.platform !== 'onebot') return;
         if (!nodesText?.trim()) return '请提供节点内容';
@@ -334,7 +320,6 @@ export class Sender {
           const nodeStrings = nodesText.split('\n');
           const messageElements = [];
           const authorRegex = /^\[([^\]]+)\]\s*(.*)$/;
-          const quoteRegex = /^<([\w-]+)>$/;
           for (const nodeStr of nodeStrings) {
             const trimmedNode = nodeStr.trim();
             if (!trimmedNode) continue;
@@ -346,30 +331,20 @@ export class Sender {
             if (authorMatch) {
               const authorStr = authorMatch[1].trim();
               contentText = authorMatch[2].trim();
-              const quoteMatch = authorStr.match(quoteRegex);
-              if (quoteMatch) {
-                const messageId = quoteMatch[1];
-                const msgInfo = await session.bot.getMessage(session.channelId, messageId);
-                  userId = msgInfo.user.id;
-                  name = msgInfo.user.name;
-                  contentElements = h.parse(msgInfo.content);
-                  contentText = '';
+              const spaceIndex = authorStr.indexOf(' ');
+              if (spaceIndex > 0) {
+                const idPart = authorStr.substring(0, spaceIndex);
+                const namePart = authorStr.substring(spaceIndex + 1).trim();
+                if (/^\d{5,}$/.test(idPart)) {
+                  userId = idPart;
+                  name = namePart;
+                }
               } else {
-                const spaceIndex = authorStr.indexOf(' ');
-                if (spaceIndex > 0) {
-                  const idPart = authorStr.substring(0, spaceIndex);
-                  const namePart = authorStr.substring(spaceIndex + 1).trim();
-                  if (/^\d{5,}$/.test(idPart)) {
-                    userId = idPart;
-                    name = namePart;
-                  }
+                if (/^\d{5,}$/.test(authorStr)) {
+                  userId = authorStr;
+                  name = null;
                 } else {
-                  if (/^\d{5,}$/.test(authorStr)) {
-                    userId = authorStr;
-                    name = null;
-                  } else {
-                    name = authorStr;
-                  }
+                  name = authorStr;
                 }
               }
             }
