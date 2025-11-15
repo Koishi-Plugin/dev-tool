@@ -84,6 +84,34 @@ export function apply(ctx: Context, config: Config) {
   backupService.registerBackupCommands(dbService.Command);
 
   const ins = ctx.command('inspect', '查看详细信息')
+    .action(({ session }, target) => {
+      if (session.quote) {
+        return `平台名：${session.platform}\n` +
+               `消息 ID：${session.quote.id}\n` +
+               `频道 ID：${session.quote.channel.id}\n` +
+               `群组 ID：${session.guildId}\n` +
+               `用户 ID：${session.quote.user?.id}\n` +
+               `自身 ID：${session.selfId}`;
+      }
+      if (target) {
+        const parsed = h.parse(target);
+        if (parsed.length > 0) {
+            const { type, attrs } = parsed[0];
+            if (type === 'at') {
+                return `用户 ID：${attrs.id}`;
+            } else if (type === 'sharp') {
+                return `频道 ID：${attrs.id}`;
+            }
+        }
+        return '参数无法解析';
+      }
+      return `平台名：${session.platform}\n` +
+             `消息 ID：${session.messageId}\n` +
+             `频道 ID：${session.channelId}\n` +
+             `群组 ID：${session.guildId}\n` +
+             `用户 ID：${session.userId}\n` +
+             `自身 ID：${session.selfId}`;
+    })
 
   /**
    * 检查消息元素命令
@@ -105,20 +133,17 @@ export function apply(ctx: Context, config: Config) {
       } else {
         elements = session.quote ? session.quote.elements : session.elements
       }
-      const jsons = []
       elements = elements.map((element) => {
         if (element.type === 'json') {
-          jsons.push(JSON.parse(element.attrs.data))
-          element.attrs.data = `[JSON ${jsons.length}]`
+          try {
+            element.attrs.data = JSON.parse(element.attrs.data)
+          } catch (e) {
+            logger.warn('解析 JSON 失败:', e)
+          }
         }
         return element
       })
-      let result = formatInspect(elements, { depth: Infinity })
-      if (jsons.length) {
-        result += '\n' + jsons.map((data, index) =>
-          `[JSON ${index + 1}]:\n${formatInspect(data, { depth: Infinity })}`
-        ).join('\n')
-      }
+      const result = formatInspect(elements, { depth: Infinity })
       return h.text(result)
     })
 
@@ -187,25 +212,17 @@ export function apply(ctx: Context, config: Config) {
     ctx.on('internal/session', (session) => {
       if (!session.type) return;
       if (!config.logFilters?.length) {
-        // 如果是黑名单模式且列表为空，则记录所有事件
-        if (config.logFilterMode === 'blacklist') {
-          logger.info(formatInspect(session));
-        }
+        if (config.logFilterMode === 'blacklist') logger.info(formatInspect(session));
         return;
       }
-
       const isMatch = config.logFilters.some(rule => {
         if (rule.type === 'user' && session.userId === rule.content) return true;
         if (rule.type === 'guild' && session.guildId === rule.content) return true;
         if (rule.type === 'event' && session.type === rule.content) return true;
         return false;
       });
-
       const shouldLog = config.logFilterMode === 'whitelist' ? isMatch : !isMatch;
-
-      if (shouldLog) {
-        logger.info(formatInspect(session));
-      }
+      if (shouldLog) logger.info(formatInspect(session));
     });
   }
 }
