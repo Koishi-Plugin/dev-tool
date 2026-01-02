@@ -147,7 +147,7 @@ export class Sender {
     }
     const encodedData = this.encoder.encode(this.processJson(data))
     const compressedData = await gzip(encodedData)
-    const target = BigInt(session.guildId || session.userId)
+    const target = parseInt(session.guildId || session.userId || '0')
     const packet = {
       "2": {
         "1": session.guildId ? 3 : 1,
