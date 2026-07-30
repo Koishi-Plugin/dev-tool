@@ -72,8 +72,13 @@ export class Sender {
   private async sendPacket(session: Session, cmd: string, packet: any): Promise<any> {
     const encodedData = this.encoder.encode(this.processJson(packet))
     const hexString = Buffer.from(encodedData).toString('hex')
-    const resp = await session.onebot._request('send_packet', { cmd, data: hexString })
-    return resp
+    try {
+      const resp = await session.onebot._request('send_pb', { cmd, hex: hexString })
+      return resp
+    } catch (error) {
+      const resp = await session.onebot._request('send_packet', { cmd, data: hexString, rsp: true })
+      return resp
+    }
   }
 
   /**
@@ -88,8 +93,8 @@ export class Sender {
     if (isSeq) {
       seq = parseInt(messageId)
     } else {
-      const msgInfo = await session.onebot._request('get_msg', { message_id: messageId })
-      const seqValue = msgInfo?.data?.real_seq || msgInfo?.data?.seq
+      const msgInfo = await session.onebot.getMsg(messageId)
+      const seqValue = msgInfo?.message_seq
       if (!seqValue) throw new Error('无法获取 Seq')
       seq = typeof seqValue === 'string' ? parseInt(seqValue) : seqValue
     }
@@ -107,7 +112,12 @@ export class Sender {
       : 'trpc.msg.register_proxy.RegisterProxy.SsoGetC2CMsg'
     const encodedData = this.encoder.encode(packet)
     const hexString = Buffer.from(encodedData).toString('hex')
-    const resp = await session.onebot._request('send_packet', { cmd, data: hexString })
+    let resp: any
+    try {
+      resp = await session.onebot._request('send_pb', { cmd, hex: hexString })
+    } catch (error) {
+      resp = await session.onebot._request('send_packet', { cmd, data: hexString, rsp: true })
+    }
     try {
       return resp?.data ? this.encoder.decode(resp.data) : null
     } catch (e) {
@@ -218,7 +228,12 @@ export class Sender {
   async sendRawPacket(session: Session, cmd: string, content: any): Promise<any> {
     const encodedData = this.encoder.encode(typeof content === 'object' ? this.processJson(content) : this.processJson(JSON.parse(content)))
     const hexString = Buffer.from(encodedData).toString('hex')
-    const resp = await session.onebot._request('send_packet', { cmd, data: hexString })
+    let resp: any
+    try {
+      resp = await session.onebot._request('send_pb', { cmd, hex: hexString })
+    } catch (error) {
+      resp = await session.onebot._request('send_packet', { cmd, data: hexString, rsp: true })
+    }
     try {
       return resp?.data ? this.encoder.decode(resp.data) : null
     } catch (e) {
@@ -260,8 +275,8 @@ export class Sender {
         if (session.bot.platform !== 'onebot') return;
         const replyData = session.event._data?.message?.find(msg => msg.type === 'reply')
         if (replyData?.data?.id) {
-          const quotedMsgInfo = await session.onebot._request('get_msg', { message_id: replyData.data.id })
-          const realSeq = quotedMsgInfo?.data?.real_seq
+          const quotedMsgInfo = await session.onebot.getMsg(replyData.data.id)
+          const realSeq = quotedMsgInfo?.message_seq
           if (realSeq) {
             const seq = typeof realSeq === 'string' ? parseInt(realSeq) : realSeq
             const data = await this.getMessage(session, seq.toString(), true)
