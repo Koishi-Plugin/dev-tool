@@ -159,15 +159,15 @@ export class Onebot {
   }
 
   /**
-   * 提取文件ID
+   * 提取文件信息
    * @param content 消息内容
-   * @returns 文件ID或null
+   * @returns 文件名或文件ID
    */
   static extractFileId(content: string): string {
     if (!content) return null
-    return /<file.*?id="(.*?)".*?\/>/i.exec(content)?.[1]
-      || /\[CQ:file,file=(?:.*?),id=(.*?)(?:,|])/i.exec(content)?.[1]
-      || /"file_id"\s*:\s*"([^"]+)"/i.exec(content)?.[1]
+    return /<file.*?(?:file|id)="(.*?)".*?\/>/i.exec(content)?.[1]
+      || /\[CQ:file,file=([^,\]]+)(?:,|])/i.exec(content)?.[1]
+      || /"file(?:_id)?"\s*:\s*"([^"]+)"/i.exec(content)?.[1]
       || null
   }
 
@@ -252,13 +252,13 @@ export class Onebot {
         } catch (e) { return utils.handleError(session, e) }
       })
     get.subcommand('.file', '获取文件信息', { authority: 2 })
-      .usage('获取指定文件ID对应的文件信息')
-      .option('id', '-i <id:string> 文件ID')
+      .usage('获取指定文件的文件信息')
+      .option('id', '-i <id:string> 文件ID/Name')
       .action(async ({ session, options }) => {
-        let fileId = options.id || (session.quote && Onebot.extractFileId(session.quote.content))
-        if (!fileId) return utils.handleError(session, new Error('未发现文件'))
+        let file = options.id || (session.quote && Onebot.extractFileId(session.quote.content))
+        if (!file) return utils.handleError(session, new Error('未发现文件'))
         try {
-          const fileInfo: any = await session.onebot._request('get_file', { file_id: fileId })
+          const fileInfo: any = await session.onebot._request('get_file', { file })
           let result = '文件信息:\n'
           if (fileInfo.file_name) result += `文件名: ${fileInfo.file_name}\n`
           if (fileInfo.file_size) result += `文件大小: ${fileInfo.file_size}\n`
