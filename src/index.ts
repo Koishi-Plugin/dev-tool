@@ -205,6 +205,50 @@ export function apply(ctx: Context, config: Config) {
     const encoder = new ProtobufEncoder()
     const Send = new Sender(encoder)
     Send.registerPacketCommands(onebot)
+
+    onebot.subcommand('request <api> [params:text]', '调用 OneBot API')
+      .option('a', '-a <key:string> <val:string> 参数 A')
+      .option('b', '-b <key:string> <val:string> 参数 B')
+      .option('c', '-c <key:string> <val:string> 参数 C')
+      .option('d', '-d <key:string> <val:string> 参数 D')
+      .option('e', '-e <key:string> <val:string> 参数 E')
+      .option('f', '-f <key:string> <val:string> 参数 F')
+      .usage('支持通过 JSON 字符串或 -a/-b/-c 等选项传递参数')
+      .action(async ({ session, options }, api, params) => {
+        if (!api) return '请输入名称'
+        let parsedParams: Record<string, any> = {}
+        if (params) {
+          try {
+            parsedParams = JSON.parse(params)
+          } catch (error) {
+            return `参数解析失败：${error.message}`
+          }
+        }
+
+        const parseOption = (optVal: any) => {
+          if (Array.isArray(optVal) && optVal.length >= 2) {
+            const [key, valStr] = optVal
+            let value: any = valStr
+            if (valStr === 'true') value = true
+            else if (valStr === 'false') value = false
+            else if (valStr === 'null') value = null
+            else if (!isNaN(Number(valStr)) && valStr.trim() !== '') value = Number(valStr)
+            else {
+              try {
+                value = JSON.parse(valStr)
+              } catch {}
+            }
+            parsedParams[key] = value
+          }
+        }
+        ['a', 'b', 'c', 'd', 'e', 'f'].forEach(key => { if (options[key]) parseOption(options[key]) })
+        try {
+          const response = await session.onebot._request(api, parsedParams)
+          return formatInspect(response, { depth: Infinity })
+        } catch (error) {
+          return `调用 API 失败: ${error.message || error}`
+        }
+      })
   }
 
   // 注册事件日志记录器
