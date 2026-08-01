@@ -206,7 +206,7 @@ export function apply(ctx: Context, config: Config) {
     const Send = new Sender(encoder)
     Send.registerPacketCommands(onebot)
 
-    onebot.subcommand('request <api> [params:text]', '调用 OneBot API')
+    onebot.subcommand('.request <api> [params:text]', '调用 OneBot API')
       .option('a', '-a <key:string> <val:string> 参数 A')
       .option('b', '-b <key:string> <val:string> 参数 B')
       .option('c', '-c <key:string> <val:string> 参数 C')
