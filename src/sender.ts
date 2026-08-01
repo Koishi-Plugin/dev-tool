@@ -288,7 +288,7 @@ export class Sender {
         return data ? JSON.stringify(data, jsonReplacer, 2) : '获取消息失败'
       })
 
-    const long = onebot.subcommand('long <content:text>', '发送长消息')
+    pb.subcommand('.long <content:text>', '发送长消息')
       .usage('输入 [JSON] 发送长消息内容')
       .action(async ({ session }, content) => {
         if (session.bot.platform !== 'onebot') return;
@@ -297,7 +297,7 @@ export class Sender {
         await this.sendLongElement(session, result)
       })
 
-    long.subcommand('.id <content:text>', '生成长消息 ResID')
+    pb.subcommand('.longid <content:text>', '生成长消息 ResID')
       .usage('输入 [JSON] 生成长消息 ResID')
       .action(async ({ session }, content) => {
         if (session.bot.platform !== 'onebot') return;
@@ -316,7 +316,7 @@ export class Sender {
         return JSON.stringify(packet, jsonReplacer, 2)
       })
 
-    long.subcommand('.get <resid:text>', '获取长消息 PB')
+    pb.subcommand('.longget <resid:text>', '获取长消息 PB')
       .usage('通过 ResID 获取长消息 PB 数据')
       .action(async ({ session }, resid) => {
         if (session.bot.platform !== 'onebot') return;
@@ -326,7 +326,7 @@ export class Sender {
         return JSON.stringify(data, jsonReplacer, 2)
       })
 
-    onebot.subcommand('forward <nodes:text>', '发送合并转发消息')
+    onebot.subcommand('.forward <nodes:text>', '发送合并转发消息')
       .usage('格式:`"[QQ号 昵称]内容"`，换行分隔节点，引号包裹多行，用户信息可选。')
       .action(async ({ session }, nodesText) => {
         if (session.bot.platform !== 'onebot') return;
