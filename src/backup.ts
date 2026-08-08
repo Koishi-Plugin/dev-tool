@@ -206,14 +206,17 @@ export class BackupService {
           const restoredTables: string[] = []
 
           for (const tableName of tableNames) {
-            if (!allData[tableName] || !Array.isArray(allData[tableName])) {
+            const cleanName = tableName.includes('_') ? tableName.replace(/^.*?_/, '') : tableName
+            const targetKey = Object.keys(allData).find(k => k === tableName || (k.includes('_') ? k.replace(/^.*?_/, '') : k) === cleanName)
+            if (!targetKey || !allData[targetKey] || !Array.isArray(allData[targetKey])) {
               continue
             }
 
-            const data = allData[tableName]
+            const data = allData[targetKey]
             if (data.length > 0) {
-              await this.ctx.database.upsert(tableName as any, data)
-              restoredTables.push(tableName)
+              const realTable = targetKey.includes('_') ? targetKey.replace(/^.*?_/, '') : targetKey
+              await this.ctx.database.upsert(realTable as any, data)
+              restoredTables.push(realTable)
             }
           }
           return restoredTables
@@ -222,8 +225,9 @@ export class BackupService {
           const restoredTables: string[] = []
           for (const [table, data] of Object.entries(allData)) {
             if (Array.isArray(data) && data.length > 0) {
-              await this.ctx.database.upsert(table as any, data)
-              restoredTables.push(table)
+              const realTable = table.includes('_') ? table.replace(/^.*?_/, '') : table
+              await this.ctx.database.upsert(realTable as any, data)
+              restoredTables.push(realTable)
             }
           }
           return restoredTables
@@ -239,8 +243,15 @@ export class BackupService {
 
       if (tableNames?.length) {
         // 恢复特定表
+        const pattern = new RegExp(`^backup_${timestamp}_(.+)\\.json$`)
         for (const tableName of tableNames) {
-          const targetFile = files.find(file => file === `backup_${timestamp}_${tableName}.json`)
+          const cleanName = tableName.includes('_') ? tableName.replace(/^.*?_/, '') : tableName
+          const targetFile = files.find(file => {
+            if (file === `backup_${timestamp}_${tableName}.json`) return true
+            const match = file.match(pattern)
+            return match && (match[1].includes('_') ? match[1].replace(/^.*?_/, '') : match[1]) === cleanName
+          })
+
           if (!targetFile) {
             continue
           }
@@ -251,8 +262,9 @@ export class BackupService {
             const data = parseJSONWithDates(content)
 
             if (Array.isArray(data) && data.length > 0) {
-              await this.ctx.database.upsert(tableName as any, data)
-              restoredTables.push(tableName)
+              const realTable = tableName.includes('_') ? tableName.replace(/^.*?_/, '') : tableName
+              await this.ctx.database.upsert(realTable as any, data)
+              restoredTables.push(realTable)
             }
           } catch (e) {
             logger.warn(`恢复表 ${tableName} 失败: ${e.message}`)
@@ -270,13 +282,14 @@ export class BackupService {
             if (!match) continue
 
             const tableName = match[1]
+            const realTable = tableName.includes('_') ? tableName.replace(/^.*?_/, '') : tableName
             const filePath = path.join(this.config.dir, fileName)
             const content = await fs.readFile(filePath, 'utf-8')
             const data = parseJSONWithDates(content)
 
             if (Array.isArray(data) && data.length > 0) {
-              await this.ctx.database.upsert(tableName as any, data)
-              restoredTables.push(tableName)
+              await this.ctx.database.upsert(realTable as any, data)
+              restoredTables.push(realTable)
             }
           } catch (e) {
             logger.warn(`恢复文件 ${fileName} 失败: ${e.message}`)
